@@ -34,3 +34,14 @@ def test_query_entity_is_protected():
     result = engine.prune_messages(_messages())
     joined = " ".join(str(msg["content"]) for msg in result.messages)
     assert "Paris" in joined
+
+
+def test_traces_mark_dropped_and_kept():
+    engine = PruneEngine(budget_ratio=0.3)
+    result = engine.prune_messages(_messages())
+    assert result.traces
+    kept_text = " ".join(trace.text for trace in result.traces if trace.kept)
+    dropped_text = " ".join(trace.text for trace in result.traces if not trace.kept)
+    assert "capital of France" in kept_text
+    assert dropped_text
+    assert any(trace.protected and trace.kept for trace in result.traces)

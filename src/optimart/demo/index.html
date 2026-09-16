@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Optimart — coupe les tokens, garde la réponse</title>
+  <style>
+    :root {
+      --bg: #07090d;
+      --card: #10141c;
+      --line: #1e2633;
+      --text: #eef2f8;
+      --muted: #8b97ab;
+      --kept: #3ee0a0;
+      --kept-bg: rgba(62, 224, 160, 0.12);
+      --drop: #ff6b8a;
+      --drop-bg: rgba(255, 107, 138, 0.1);
+      --lock: #7aa2ff;
+      --accent: #8b7cff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 ui-sans-serif, system-ui, sans-serif; }
+    body { min-height: 100vh; }
+    header {
+      padding: 28px 28px 8px;
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 16px;
+    }
+    .brand { font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+    .brand span { color: var(--accent); }
+    .lede { color: var(--muted); max-width: 640px; margin-top: 6px; }
+    .github { color: var(--muted); text-decoration: none; border: 1px solid var(--line); padding: 8px 12px; border-radius: 999px; }
+    .github:hover { color: var(--text); }
+    main { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 18px 28px 40px; }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px; min-height: 520px; }
+    label { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin: 10px 0 6px; }
+    textarea, input[type="text"] {
+      width: 100%; background: #0b0f16; color: var(--text); border: 1px solid var(--line);
+      border-radius: 12px; padding: 12px; resize: vertical; font: inherit;
+    }
+    textarea { min-height: 280px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+    button.primary {
+      background: var(--accent); color: white; border: 0; border-radius: 999px;
+      padding: 10px 18px; font-weight: 700; cursor: pointer;
+    }
+    button.ghost, .chip {
+      background: transparent; color: var(--text); border: 1px solid var(--line);
+      border-radius: 999px; padding: 8px 12px; cursor: pointer;
+    }
+    .chip.active { border-color: var(--accent); color: #cfc8ff; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+    .stat { background: #0b0f16; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+    .stat b { display: block; font-size: 18px; }
+    .stat span { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+    .seg { border-radius: 10px; padding: 8px 10px; margin: 0 0 8px; border: 1px solid transparent; }
+    .seg.kept { background: var(--kept-bg); border-color: rgba(62, 224, 160, .25); }
+    .seg.dropped { background: var(--drop-bg); border-color: rgba(255, 107, 138, .2); opacity: .72; }
+    .seg.protected { box-shadow: inset 3px 0 0 var(--lock); }
+    .meta { font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .legend { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 99px; margin-right: 4px; }
+    .err { color: var(--drop); padding: 12px; }
+    input[type="range"] { width: 180px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <div class="brand">Optim<span>art</span></div>
+      <p class="lede">Colle un pavé RAG. Optimart jette les phrases inutiles et garde celles qui servent à répondre — sans appeler ChatGPT pour compresser.</p>
+    </div>
+    <a class="github" href="https://github.com/MartinBouvet/Optimisation">GitHub</a>
+  </header>
+  <main>
+    <section class="panel">
+      <div class="row" id="examples"></div>
+      <label for="question">Question</label>
+      <input id="question" type="text" />
+      <label for="context">Contexte (documents, tickets, notes…)</label>
+      <textarea id="context"></textarea>
+      <div class="row">
+        <label style="margin:0">Budget <b id="budgetLabel">45%</b></label>
+        <input id="budget" type="range" min="20" max="70" value="45" />
+        <button class="primary" id="run">Couper les tokens</button>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="row" style="margin-top:0">
+        <button class="ghost" data-view="optimart">Optimart</button>
+        <button class="ghost" data-view="trunc">Coupe bête (début)</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <div class="legend">
+        <span class="dot" style="background:var(--kept)"></span> gardé
+        <span class="dot" style="background:var(--drop); margin-left:12px"></span> jeté
+        <span class="dot" style="background:var(--lock); margin-left:12px"></span> verrouillé (question / system)
+      </div>
+      <div id="out"><p class="lede">Lance un exemple. Tu dois voir la réponse rester verte chez Optimart, et disparaître en rose avec la coupe bête.</p></div>
+    </section>
+  </main>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let payload = null;
+    let view = "optimart";
+
+    $("budget").addEventListener("input", () => {
+      $("budgetLabel").textContent = $("budget").value + "%";
+    });
+
+    async function loadExamples() {
+      const res = await fetch("/v1/examples");
+      const data = await res.json();
+      const box = $("examples");
+      data.examples.forEach((ex, i) => {
+        const btn = document.createElement("button");
+        btn.className = "chip" + (i === 0 ? " active" : "");
+        btn.textContent = ex.title;
+        btn.onclick = () => {
+          box.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+          btn.classList.add("active");
+          $("question").value = ex.question;
+          $("context").value = ex.context;
+        };
+        box.appendChild(btn);
+        if (i === 0) btn.click();
+      });
+    }
+
+    function money(n) {
+      return n.toLocaleString("fr-FR", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+    }
+
+    function render() {
+      if (!payload) return;
+      const arm = payload[view];
+      $("stats").innerHTML = `
+        <div class="stat"><span>Avant</span><b>${arm.stats.tokens_before}</b></div>
+        <div class="stat"><span>Après</span><b>${arm.stats.tokens_after}</b></div>
+        <div class="stat"><span>Coupé</span><b>${Math.round(arm.stats.reduction * 100)}%</b></div>
+        <div class="stat"><span>Éco. / 100k gpt-4o</span><b>${money(arm.saved_per_100k_gpt4o)}</b></div>`;
+      const gold = (payload.question || "").toLowerCase();
+      const top = arm.segments.filter((s) => s.kept && !s.protected).sort((a, b) => b.score - a.score)[0];
+      const callout = view === "optimart" && top
+        ? `<div class="seg kept"><div class="meta">phrase la plus utile pour la question</div>${escapeHtml(top.text)}</div>`
+        : "";
+      $("out").innerHTML = callout + arm.segments.map((seg) => {
+        const cls = [seg.kept ? "kept" : "dropped", "seg", seg.protected ? "protected" : ""].join(" ");
+        const tag = seg.protected ? "verrouillé" : (seg.kept ? "gardé" : "jeté");
+        return `<div class="${cls}">${escapeHtml(seg.text)}<div class="meta">${tag} · ${seg.n_tokens} tok · score ${seg.score}</div></div>`;
+      }).join("") || "<p class='err'>Rien à afficher.</p>";
+      void gold;
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    document.querySelectorAll("[data-view]").forEach((btn) => {
+      btn.onclick = () => {
+        view = btn.dataset.view;
+        render();
+      };
+    });
+
+    $("run").onclick = async () => {
+      $("out").innerHTML = "<p class='lede'>Scoring MiniLM en cours…</p>";
+      const res = await fetch("/v1/prune", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: $("question").value,
+          context: $("context").value,
+          budget_ratio: Number($("budget").value) / 100,
+        }),
+      });
+      if (!res.ok) {
+        $("out").innerHTML = `<p class="err">${escapeHtml(await res.text())}</p>`;
+        return;
+      }
+      payload = await res.json();
+      view = "optimart";
+      render();
+    };
+
+    loadExamples();
+  </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "optimart"
-version = "0.1.0"
+version = "0.2.0"
 description = "Semantic context pruning for LLM inference cost reduction"
 requires-python = ">=3.10"
 license = { text = "Apache-2.0" }
@@ -28,6 +28,9 @@ dev = ["pytest>=8.0", "ruff>=0.5"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+optimart = ["demo/*.html"]
 
 [tool.ruff]
 line-length = 100

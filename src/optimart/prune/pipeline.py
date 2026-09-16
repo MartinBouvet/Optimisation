@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from optimart.data.segmentation import TokenCounter, split_sentences
@@ -31,6 +31,40 @@ class WorkSegment:
     score: float = 0.0
 
 
+@dataclass(slots=True)
+class SegmentTrace:
+    text: str
+    role: str
+    n_tokens: int
+    score: float
+    protected: bool
+    kept: bool
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "text": self.text,
+            "role": self.role,
+            "n_tokens": self.n_tokens,
+            "score": round(self.score, 4),
+            "protected": self.protected,
+            "kept": self.kept,
+        }
+
+
+def traces_from(segments: list[WorkSegment], chosen: set[int]) -> list[SegmentTrace]:
+    return [
+        SegmentTrace(
+            text=seg.text,
+            role=seg.role,
+            n_tokens=seg.n_tokens,
+            score=seg.score,
+            protected=seg.protected,
+            kept=i in chosen,
+        )
+        for i, seg in enumerate(segments)
+    ]
+
+
 @dataclass
 class PruneResult:
     messages: list[dict[str, Any]]
@@ -43,12 +77,17 @@ class PruneResult:
     latency_ms: float
     method: str
     protected_overflow: bool
+    traces: list[SegmentTrace] = field(default_factory=list)
 
     @property
     def reduction(self) -> float:
         if self.tokens_before <= 0:
             return 0.0
         return 1.0 - (self.tokens_after / self.tokens_before)
+
+    @property
+    def pruned_text(self) -> str:
+        return "\n\n".join(str(msg.get("content") or "") for msg in self.messages)
 
     def stats(self) -> dict[str, Any]:
         return {
@@ -120,6 +159,7 @@ class PruneEngine:
                 latency_ms=elapsed,
                 method="noop",
                 protected_overflow=False,
+                traces=[],
             )
 
         pruneable = [seg for seg in segments if not seg.protected]
@@ -142,7 +182,8 @@ class PruneEngine:
             for i, seg in enumerate(segments)
         ]
         solution = solve_knapsack(items, budget)
-        kept_segments = [seg for i, seg in enumerate(segments) if i in solution.chosen]
+        chosen = set(solution.chosen)
+        kept_segments = [seg for i, seg in enumerate(segments) if i in chosen]
         rebuilt = self.rebuild_messages(original, kept_segments)
         tokens_after = sum(self.counter.count(message_text(msg)) for msg in rebuilt)
         elapsed = (time.perf_counter() - started) * 1000
@@ -157,7 +198,18 @@ class PruneEngine:
             latency_ms=elapsed,
             method=solution.method,
             protected_overflow=solution.protected_overflow,
+            traces=traces_from(segments, chosen),
         )
+
+    def prune_document(self, question: str, context: str, *, system: str | None = None) -> PruneResult:
+        messages = [
+            {
+                "role": "system",
+                "content": system or "Tu réponds uniquement à partir des documents fournis.",
+            },
+            {"role": "user", "content": f"{context.strip()}\nQuestion: {question.strip()}"},
+        ]
+        return self.prune_messages(messages)
 
     def _query_from_messages(self, messages: list[dict[str, Any]]) -> str:
         for message in reversed(messages):

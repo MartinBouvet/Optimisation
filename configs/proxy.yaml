@@ -1,6 +1,6 @@
 dry_run: true
 device: auto
-# Use the toy checkpoint from étape 2. Switch after a real MiniLM training run.
+scorer: minilm
 checkpoint: artifacts/train_minilm/best.pt
 upstream_base_url: https://api.openai.com
 timeout_s: 120

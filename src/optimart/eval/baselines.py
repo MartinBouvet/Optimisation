@@ -7,7 +7,7 @@ import time
 from typing import Literal
 
 from optimart.prune.knapsack import KnapsackItem, solve_knapsack
-from optimart.prune.pipeline import PruneEngine, PruneResult, WorkSegment, message_text
+from optimart.prune.pipeline import PruneEngine, PruneResult, WorkSegment, message_text, traces_from
 
 Policy = Literal["full", "trunc_head", "trunc_tail", "optimart"]
 
@@ -41,6 +41,7 @@ def run_arm(
     budget = engine.budget_for(segments, budget_tokens)
     if policy == "full":
         elapsed = (time.perf_counter() - started) * 1000
+        all_idx = set(range(len(segments)))
         return PruneResult(
             messages=original,
             query=query,
@@ -52,6 +53,7 @@ def run_arm(
             latency_ms=elapsed,
             method="full",
             protected_overflow=False,
+            traces=traces_from(segments, all_idx),
         )
     elif policy == "trunc_head":
         chosen = _take_unprotected_in_order(segments, budget, reverse=False)
@@ -98,6 +100,7 @@ def run_arm(
         latency_ms=elapsed,
         method=method,
         protected_overflow=overflow,
+        traces=traces_from(segments, chosen),
     )
 
 
