@@ -1,0 +1,1 @@
+"""Optimart OpenAI-compatible proxy."""

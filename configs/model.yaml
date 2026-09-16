@@ -1,0 +1,8 @@
+# Compact cross-encoder. `tiny` = offline smoke test (no download).
+# Production default: MiniLM ~22M params, fast enough for <25 ms later in ONNX.
+backbone: sentence-transformers/all-MiniLM-L6-v2
+dropout: 0.1
+head_hidden: 192
+freeze_embeddings: false
+freeze_layers: 0
+max_seq_length: 160

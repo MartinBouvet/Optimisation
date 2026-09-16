@@ -1,0 +1,75 @@
+{
+  "suite": "crafted+hotpot40",
+  "n_cases": 64,
+  "scorer": "checkpoint:artifacts/train_minilm/best.pt",
+  "budget_ratio": 0.45,
+  "protocol": "extractive_answer_coverage",
+  "arms": {
+    "full": {
+      "n": 64.0,
+      "tokens_before_mean": 855.484375,
+      "tokens_after_mean": 855.484375,
+      "reduction_mean": 0.0,
+      "answer_coverage": 0.984375,
+      "support_recall": 1.0,
+      "latency_ms_p50": 1.5708123100921512,
+      "latency_ms_p95": 3.5752830677665743,
+      "latency_ms_mean": 1.4391757067642175
+    },
+    "trunc_head": {
+      "n": 64.0,
+      "tokens_before_mean": 855.484375,
+      "tokens_after_mean": 468.515625,
+      "reduction_mean": 0.45995696911547496,
+      "answer_coverage": 0.65625,
+      "support_recall": 0.5765625,
+      "latency_ms_p50": 1.7744790529832244,
+      "latency_ms_p95": 3.572772233746944,
+      "latency_ms_mean": 1.563785132020712
+    },
+    "trunc_tail": {
+      "n": 64.0,
+      "tokens_before_mean": 855.484375,
+      "tokens_after_mean": 466.90625,
+      "reduction_mean": 0.4685730729126514,
+      "answer_coverage": 0.65625,
+      "support_recall": 0.5895833333333333,
+      "latency_ms_p50": 1.7537290696054697,
+      "latency_ms_p95": 3.4137607086449853,
+      "latency_ms_mean": 1.5401932905660942
+    },
+    "optimart": {
+      "n": 64.0,
+      "tokens_before_mean": 855.484375,
+      "tokens_after_mean": 469.84375,
+      "reduction_mean": 0.4589558976787395,
+      "answer_coverage": 0.90625,
+      "support_recall": 0.8549479166666667,
+      "latency_ms_p50": 123.17710393108428,
+      "latency_ms_p95": 279.2273000464774,
+      "latency_ms_mean": 118.38365950825391
+    }
+  },
+  "cost_100k": {
+    "gpt-4o-mini": {
+      "full": 12.8323,
+      "full_saved_vs_full": 0.0,
+      "trunc_head": 7.0277,
+      "trunc_head_saved_vs_full": 5.8045,
+      "trunc_tail": 7.0036,
+      "trunc_tail_saved_vs_full": 5.8287,
+      "optimart": 7.0477,
+      "optimart_saved_vs_full": 5.7846
+    },
+    "gpt-4o": {
+      "full": 213.8711,
+      "full_saved_vs_full": 0.0,
+      "trunc_head": 117.1289,
+      "trunc_head_saved_vs_full": 96.7422,
+      "trunc_tail": 116.7266,
+      "trunc_tail_saved_vs_full": 97.1445,
+      "optimart": 117.4609,
+      "optimart_saved_vs_full": 96.4102
+    }
+  }
+}

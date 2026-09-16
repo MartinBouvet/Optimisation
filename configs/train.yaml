@@ -1,0 +1,43 @@
+seed: 42
+output_dir: artifacts/train
+
+data:
+  train_files:
+    - data/processed/hotpotqa_train.jsonl
+    - data/processed/squad_train.jsonl
+  val_files:
+    - data/processed/hotpotqa_validation.jsonl
+    - data/processed/squad_validation.jsonl
+  max_segments: 24
+
+optim:
+  lr: 2.0e-5
+  weight_decay: 0.01
+  warmup_ratio: 0.06
+  max_grad_norm: 1.0
+  epochs: 3
+  batch_size: 4
+  grad_accum: 4
+
+loss:
+  beta_hard: 0.7
+  lambda_rank: 0.3
+  lambda_l1: 0.05
+  lambda_budget: 0.2
+  lambda_coverage: 0.5
+  lambda_entropy: 0.02
+  budget_ratio: 0.45
+  coverage_ratio: 0.95
+  focal_gamma: 2.0
+  pos_weight: 6.0
+  rank_tau: 0.15
+
+log_every_steps: 10
+early_stopping_patience: 3
+
+synthetic:
+  n_train: 48
+  n_val: 16
+  epochs: 2
+  batch_size: 8
+  lr: 1.0e-3

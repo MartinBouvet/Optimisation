@@ -1,0 +1,4 @@
+budget_ratio: 0.45
+max_query_chars: 400
+min_segment_chars: 12
+encoding: cl100k_base
